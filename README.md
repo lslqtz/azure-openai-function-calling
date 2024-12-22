@@ -38,6 +38,7 @@ This project extends the capabilities of an Azure OpenAI GPT model to include ad
     - This command runs the Docker container and maps the container's port 8000 to the local port 8000. Adjust the port mapping as necessary based on your configuration.
     - .env file content:
       ```
+      HARDCODED_API_KEY="abcdefg"
       AZURE_OPENAI_ENDPOINT="https://{user-region}.cognitiveservices.azure.com/"
       AZURE_API_VERSION="2024-08-01-preview"
       AZURE_OPENAI_KEY="unknown"
