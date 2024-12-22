@@ -18,7 +18,7 @@ This project extends the capabilities of an Azure OpenAI GPT model to include ad
 ### Running Locally with Uvicorn
 - Run the application using Uvicorn:
   ```bash
-  uvicorn main:app --reload
+  uvicorn test:app --reload
   ```
 
 ### Building and Running with Docker
@@ -32,18 +32,35 @@ This project extends the capabilities of an Azure OpenAI GPT model to include ad
 2. **Run the Docker Container**
     - Once the image is built, run the container.
       ```bash
-      docker run -p 8000:8000 gpt-web-search-app
+      docker run --env-file .env -p 8000:8000 gpt-web-search-app
       ```
 
     - This command runs the Docker container and maps the container's port 8000 to the local port 8000. Adjust the port mapping as necessary based on your configuration.
+    - .env file content:
+      ```
+      AZURE_OPENAI_ENDPOINT="https://{user-region}.cognitiveservices.azure.com/"
+      AZURE_API_VERSION="2024-08-01-preview"
+      AZURE_OPENAI_KEY="unknown"
+      AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+      ```
 
 3. **Accessing the Application**
     - With the Docker container running, the application should be accessible at `http://localhost:8000`.
 
-### Accessing FastAPI Documentation
-- **Swagger UI**: Navigate to `http://localhost:8000/docs`. This interactive UI allows you to execute API calls directly from the browser.
-- **ReDoc**: For an alternative documentation format, visit `http://localhost:8000/redoc`.
-
+### API
+Compatible with OpenAI API v1.
+```
+curl -X POST \
+   -H "Content-Type: application/json" \
+   -H "Authorization: Bearer abcdefg" \
+   -d '{
+    "messages": [
+      {"role": "user", "content": "你好，请问今天天气怎么样？"}
+    ],
+    "stream": true
+   }' \
+   http://127.0.0.1:8000/v1/chat/completions
+```
 
 
 ## Sample Questions to Ask the Model
