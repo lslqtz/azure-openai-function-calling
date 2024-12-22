@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def chunk_text(text, chunk_size=2):
+    """将文本按指定字符数分块"""
     return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
@@ -57,21 +58,16 @@ async def generate_stream(chat_request: ChatRequest):
 
     except RateLimitError as e:
         logging.error(f"OpenAI Rate Limit Error: {e}")
-        error_message = f"Error code: 429 - {json.dumps({'error': {'code': '429', 'message': str(e)}})}"
-        yield f"data: {json.dumps({'choices':[{'delta': {'content': error_message}}]})}\n\n".encode('utf-8')
+        yield f"data: {json.dumps({'choices':[{'delta': {'content': str(e)}}]})}\n\n".encode('utf-8')
     except APIError as e:
         logging.error(f"OpenAI API Error: {e}")
-        error_message = f"Error code: 500 - {json.dumps({'error': {'code': '500', 'message': str(e)}})}"
-        yield f"data: {json.dumps({'choices':[{'delta': {'content': error_message}}]})}\n\n".encode('utf-8')
+        yield f"data: {json.dumps({'choices':[{'delta': {'content': str(e)}}]})}\n\n".encode('utf-8')
     except HTTPStatusError as e:
         logging.error(f"HTTPStatusError: {e}")
-        error_message = f"Error code: {e.response.status_code} - {json.dumps({'error': {'code': str(e.response.status_code), 'message': str(e)}})}"
-        yield f"data: {json.dumps({'choices':[{'delta': {'content': error_message}}]})}\n\n".encode('utf-8')
+        yield f"data: {json.dumps({'choices':[{'delta': {'content': str(e)}}]})}\n\n".encode('utf-8')
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
-        error_message = f"Error code: 500 - {json.dumps({'error': {'code': '500', 'message': str(e)}})}"
-        yield f"data: {json.dumps({'choices':[{'delta': {'content': error_message}}]})}\n\n".encode('utf-8')
-
+        yield f"data: {json.dumps({'choices':[{'delta': {'content': str(e)}}]})}\n\n".encode('utf-8')
 
 
 @app.post("/v1/chat/completions")
@@ -95,7 +91,7 @@ async def chat_completions(request: Request, chat_request: ChatRequest):
             return JSONResponse({"error": "Authorization 请求头格式不正确"}, status_code=200)
 
         if chat_request.stream:
-             return StreamingResponse(generate_stream(chat_request), media_type="text/event-stream")
+            return StreamingResponse(generate_stream(chat_request), media_type="text/event-stream")
 
         else:
             try:
@@ -106,61 +102,55 @@ async def chat_completions(request: Request, chat_request: ChatRequest):
                     stream=False,
                 )
                 if response.choices:
-                    content = response.choices[0].message.content
-                    return JSONResponse({
+                  content = response.choices[0].message.content
+                  return JSONResponse({
                         'choices': [{
                             'message': {'content': content},
                             'finish_reason': 'stop'
-                            }]
+                           }]
                     }, status_code=200)
                 else:
-                    return JSONResponse({
+                     return JSONResponse({
                          'choices': [],
                          }, status_code=200)
 
             except RateLimitError as e:
                 logging.error(f"OpenAI Rate Limit Error: {e}")
-                error_message = f"Error code: 429 - {json.dumps({'error': {'code': '429', 'message': str(e)}})}"
                 return JSONResponse({
                       'choices': [{
-                            'message': {'content': error_message},
-                            'finish_reason': 'error'
-                        }]
-                    }, status_code=200)
+                         'message': {'content': str(e)},
+                         'finish_reason': 'error'
+                         }]
+                  }, status_code=200)
             except APIError as e:
                 logging.error(f"OpenAI API Error: {e}")
-                error_message = f"Error code: 500 - {json.dumps({'error': {'code': '500', 'message': str(e)}})}"
                 return JSONResponse({
-                      'choices': [{
-                            'message': {'content': error_message},
-                            'finish_reason': 'error'
-                           }]
-                    }, status_code=200)
+                     'choices': [{
+                        'message': {'content': str(e)},
+                        'finish_reason': 'error'
+                        }]
+                   }, status_code=200)
             except HTTPStatusError as e:
                 logging.error(f"HTTPStatusError: {e}")
-                error_message = f"Error code: {e.response.status_code} - {json.dumps({'error': {'code': str(e.response.status_code), 'message': str(e)}})}"
                 return JSONResponse({
-                      'choices': [{
-                            'message': {'content': error_message},
-                             'finish_reason': 'error'
-                           }]
-                    }, status_code=200)
+                     'choices': [{
+                        'message': {'content': str(e)},
+                        'finish_reason': 'error'
+                      }]
+                   }, status_code=200)
             except Exception as e:
                 logging.error(f"An unexpected error occurred: {e}")
-                error_message = f"Error code: 500 - {json.dumps({'error': {'code': '500', 'message': str(e)}})}"
                 return JSONResponse({
-                    'choices': [{
-                       'message': {'content': error_message},
+                     'choices': [{
+                        'message': {'content': str(e)},
                         'finish_reason': 'error'
                        }]
-                    }, status_code=200)
-
+                }, status_code=200)
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
-        error_message = f"Error code: 500 - {json.dumps({'error': {'code': '500', 'message': str(e)}})}"
         return JSONResponse({
-                      'choices': [{
-                           'message': {'content': error_message},
-                            'finish_reason': 'error'
-                           }]
-                    }, status_code=200)
+             'choices': [{
+                'message': {'content': str(e)},
+                 'finish_reason': 'error'
+                 }]
+            }, status_code=200)
