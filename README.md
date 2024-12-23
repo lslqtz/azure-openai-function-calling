@@ -39,10 +39,10 @@ This project extends the capabilities of an Azure OpenAI GPT model to include ad
     - .env file content:
       ```
       HARDCODED_API_KEY="abcdefg"
-      AZURE_OPENAI_ENDPOINT="https://{user-region}.cognitiveservices.azure.com/"
+      AZURE_OPENAI_ENDPOINT="https://{user-region}.cognitiveservices.azure.com"
       AZURE_API_VERSION="2024-08-01-preview"
       AZURE_OPENAI_KEY="unknown"
-      AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+      AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o"
       ```
 
 3. **Accessing the Application**
