@@ -24,7 +24,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def chunk_text(text, chunk_size=2):
-    """将文本按指定字符数分块"""
     return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
 
@@ -38,7 +37,12 @@ class ChatRequest(BaseModel):
     stream: bool = False
 
 
-async def generate_stream(chat_request: ChatRequest):
+async def generate_stream(chat_request: ChatRequest, error_message=None):
+    if error_message:
+        yield f"data: {json.dumps({'choices':[{'delta': {'content': error_message}}]})}\n\n".encode('utf-8')
+        yield b"data: [DONE]\n\n"
+        return
+
     try:
         response = client.chat.completions.create(
             model=config.azure_openai_deployment_name,
@@ -78,17 +82,49 @@ async def chat_completions(request: Request, chat_request: ChatRequest):
 
         # 检查 Authorization 字段是否存在
         if not auth_header:
-            return JSONResponse({"error": "缺少 Authorization 请求头"}, status_code=200)
+            if chat_request.stream:
+                return StreamingResponse(generate_stream(chat_request, error_message="缺少 Authorization 请求头"), media_type="text/event-stream")
+            else:
+                return JSONResponse({
+                        'choices': [{
+                            'message': {'content': "缺少 Authorization 请求头"},
+                            'finish_reason': 'error'
+                        }]
+                  }, status_code=200)
 
         # 验证 API 密钥是否正确
         try:
             auth_type, api_key = auth_header.split(" ")
             if auth_type != "Bearer":
-                return JSONResponse({"error": "Authorization 请求头格式不正确, 需要使用 Bearer 认证"}, status_code=200)
+                if chat_request.stream:
+                    return StreamingResponse(generate_stream(chat_request, error_message="Authorization 请求头格式不正确, 需要使用 Bearer 认证"), media_type="text/event-stream")
+                else:
+                     return JSONResponse({
+                        'choices': [{
+                            'message': {'content': "Authorization 请求头格式不正确, 需要使用 Bearer 认证"},
+                            'finish_reason': 'error'
+                        }]
+                     }, status_code=200)
             if api_key != config.hardcoded_api_key:
-                return JSONResponse({"error": "API 密钥无效"}, status_code=200)
+                 if chat_request.stream:
+                    return StreamingResponse(generate_stream(chat_request, error_message="API 密钥无效"), media_type="text/event-stream")
+                 else:
+                     return JSONResponse({
+                        'choices': [{
+                            'message': {'content': "API 密钥无效"},
+                             'finish_reason': 'error'
+                            }]
+                     }, status_code=200)
         except:
-            return JSONResponse({"error": "Authorization 请求头格式不正确"}, status_code=200)
+             if chat_request.stream:
+                return StreamingResponse(generate_stream(chat_request, error_message="Authorization 请求头格式不正确"), media_type="text/event-stream")
+             else:
+                return JSONResponse({
+                    'choices': [{
+                        'message': {'content': "Authorization 请求头格式不正确"},
+                        'finish_reason': 'error'
+                    }]
+                }, status_code=200)
 
         if chat_request.stream:
             return StreamingResponse(generate_stream(chat_request), media_type="text/event-stream")
@@ -107,50 +143,51 @@ async def chat_completions(request: Request, chat_request: ChatRequest):
                         'choices': [{
                             'message': {'content': content},
                             'finish_reason': 'stop'
-                           }]
-                    }, status_code=200)
+                            }]
+                  }, status_code=200)
                 else:
                      return JSONResponse({
-                         'choices': [],
+                        'choices': [],
                          }, status_code=200)
+
 
             except RateLimitError as e:
                 logging.error(f"OpenAI Rate Limit Error: {e}")
                 return JSONResponse({
-                      'choices': [{
-                         'message': {'content': str(e)},
+                     'choices': [{
+                        'message': {'content': str(e)},
                          'finish_reason': 'error'
                          }]
-                  }, status_code=200)
+                   }, status_code=200)
             except APIError as e:
                 logging.error(f"OpenAI API Error: {e}")
                 return JSONResponse({
-                     'choices': [{
-                        'message': {'content': str(e)},
+                      'choices': [{
+                         'message': {'content': str(e)},
                         'finish_reason': 'error'
-                        }]
-                   }, status_code=200)
+                         }]
+                    }, status_code=200)
             except HTTPStatusError as e:
-                logging.error(f"HTTPStatusError: {e}")
-                return JSONResponse({
+               logging.error(f"HTTPStatusError: {e}")
+               return JSONResponse({
                      'choices': [{
                         'message': {'content': str(e)},
                         'finish_reason': 'error'
-                      }]
-                   }, status_code=200)
+                       }]
+                  }, status_code=200)
             except Exception as e:
                 logging.error(f"An unexpected error occurred: {e}")
                 return JSONResponse({
                      'choices': [{
                         'message': {'content': str(e)},
-                        'finish_reason': 'error'
+                       'finish_reason': 'error'
                        }]
-                }, status_code=200)
+                 }, status_code=200)
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
         return JSONResponse({
              'choices': [{
-                'message': {'content': str(e)},
-                 'finish_reason': 'error'
-                 }]
+                 'message': {'content': str(e)},
+                  'finish_reason': 'error'
+                  }]
             }, status_code=200)
